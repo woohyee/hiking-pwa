@@ -1,135 +1,114 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang=\"ko\">
 <head>
-  <meta charset="UTF-8">
-  <title>자동 운동 & 산책 기록 앱</title>
-  <script src="https://cdn.jsdelivr.net/npm/idb@7/build/iife/index-min.js"></script>
+  <meta charset=\"UTF-8\">
+  <title>운동 산책 기록 앱</title>
+  <script src=\"https://cdn.jsdelivr.net/npm/idb@7/build/iife/index-min.js\"></script>
+  <style>
+    body { font-size: 18px; padding: 15px; }
+    button { font-size: 20px; padding: 10px 15px; margin-top: 10px; }
+    div { margin-bottom: 10px; }
+  </style>
 </head>
 <body>
-  <h2>🏞️ 자동 운동 & 산책 기록 앱 🌳</h2>
-  <div>상태: <span id="status">휴식중</span></div>
-  <div>장소: <span id="location">알 수 없음</span></div>
-  <div>걸음수: <span id="steps">0</span> 걸음</div>
-  <div>이동거리: <span id="distance">0</span> m</div>
-  <div>운동시간: <span id="time">0</span> 초</div>
-  <button onclick="addMemo()">현재 장소에 사진/메모 추가</button>
+  <h2>🏞️ 운동 산책 기록 앱 🌳</h2>
+  <div>상태: <span id=\"status\">대기중</span></div>
+  <div>장소: <span id=\"location\">알 수 없음</span></div>
+  <div>걸음수: <span id=\"steps\">0</span> 걸음</div>
+  <div>이동거리: <span id=\"distance\">0</span> m</div>
+  <div>운동시간: <span id=\"time\">0</span> 초</div>
+  <button onclick=\"startWorkout()\">운동 시작 🚶‍♂️</button>
+  <button onclick=\"addMemo()\">현재 장소 메모 추가 📝</button>
 
-  <script>
-  const dbPromise = idb.openDB('hiking-app', 1, {
-    upgrade(db) {
-      db.createObjectStore('places', {keyPath: 'id', autoIncrement: true});
-      db.createObjectStore('records', {keyPath: 'id', autoIncrement: true});
-    }
-  });
+<script>
+const dbPromise = idb.openDB('hiking-app', 1, {
+  upgrade(db) {
+    db.createObjectStore('places', {keyPath: 'id', autoIncrement: true});
+    db.createObjectStore('records', {keyPath: 'id', autoIncrement: true});
+  }
+});
 
-  let steps = 0, distance = 0, timer = null, elapsedTime = 0;
-  let lastCoords = null, isMoving = false, lastMotionTime = Date.now();
-  let currentLocation = null;
+let steps = 0, distance = 0, timer = null, elapsedTime = 0;
+let lastCoords = null, isMoving = false;
+let currentLocation = null;
+const locations = [];
 
-  const locations = [];
+async function loadPlaces() {
+  const db = await dbPromise;
+  locations.push(...await db.getAll('places'));
+}
+loadPlaces();
 
-  async function loadPlaces() {
+function calculateDistance(c1, c2) {
+  const R = 6371e3, toRad = deg => deg * Math.PI / 180;
+  const φ1 = toRad(c1.latitude), φ2 = toRad(c2.latitude);
+  const Δφ = toRad(c2.latitude - c1.latitude);
+  const Δλ = toRad(c2.longitude - c1.longitude);
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+navigator.geolocation.watchPosition(pos => {
+  const coords = pos.coords;
+  if (!lastCoords) updateLocation(coords);
+
+  if (isMoving && lastCoords) {
+    distance += calculateDistance(lastCoords, coords);
+    document.getElementById('distance').textContent = distance.toFixed(1);
+  }
+
+  lastCoords = coords;
+}, err => console.error(err), {enableHighAccuracy: true});
+
+function updateLocation(coords) {
+  currentLocation = locations.find(loc => calculateDistance(coords, loc.coords) <= loc.radius);
+
+  if (!currentLocation) {
+    const name = prompt('새로운 장소입니다! 장소 이름을 입력하면 저장됩니다:');
+    if (name) saveNewLocation(name, coords);
+    document.getElementById('location').textContent = name || '미등록 장소';
+  } else {
+    document.getElementById('location').textContent = currentLocation.name;
+  }
+}
+
+async function saveNewLocation(name, coords) {
+  const db = await dbPromise;
+  const newPlace = {name, coords, radius: 300, created: new Date()};
+  locations.push(newPlace);
+  await db.add('places', newPlace);
+}
+
+function startWorkout() {
+  if (isMoving) return;
+  isMoving = true;
+  document.getElementById('status').textContent = \"운동중\";
+  window.addEventListener('devicemotion', countSteps);
+  timer = setInterval(() => {
+    elapsedTime++;
+    document.getElementById('time').textContent = elapsedTime;
+  }, 1000);
+}
+
+function countSteps(e) {
+  const {x,y,z} = e.accelerationIncludingGravity;
+  const magnitude = Math.sqrt(x*x + y*y + z*z);
+  if (magnitude > 12) {
+    steps++;
+    document.getElementById('steps').textContent = steps;
+  }
+}
+
+async function addMemo() {
+  if (!currentLocation) return alert('등록된 장소에서만 메모 추가 가능!');
+  const memo = prompt('이 장소에 대한 메모를 입력하세요:');
+  if (memo) {
     const db = await dbPromise;
-    locations.push(...await db.getAll('places'));
+    currentLocation.memo = memo;
+    await db.put('places', currentLocation);
+    alert('메모가 추가되었습니다!');
   }
-
-  loadPlaces();
-
-  function calculateDistance(c1, c2) {
-    const R = 6371e3, toRad = deg => deg * Math.PI / 180;
-    const φ1 = toRad(c1.latitude), φ2 = toRad(c2.latitude);
-    const Δφ = toRad(c2.latitude - c1.latitude);
-    const Δλ = toRad(c2.longitude - c1.longitude);
-    const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  }
-
-  function updateLocation(coords) {
-    currentLocation = locations.find(loc => calculateDistance(coords, loc.coords) <= loc.radius);
-
-    if (!currentLocation) {
-      const name = prompt('새로운 장소입니다! 장소 이름을 입력하면 저장됩니다:');
-      if (name) saveNewLocation(name, coords);
-      document.getElementById('location').textContent = name || '미등록 장소';
-    } else {
-      document.getElementById('location').textContent = currentLocation.name;
-    }
-  }
-
-  async function saveNewLocation(name, coords) {
-    const db = await dbPromise;
-    const newPlace = {name, coords, radius: 300, created: new Date()};
-    locations.push(newPlace);
-    await db.add('places', newPlace);
-  }
-
-  navigator.geolocation.watchPosition(pos => {
-    const coords = pos.coords;
-    if (!lastCoords) updateLocation(coords);
-
-    if (lastCoords) {
-      distance += calculateDistance(lastCoords, coords);
-      document.getElementById('distance').textContent = distance.toFixed(1);
-    }
-
-    lastCoords = coords;
-  }, err => console.error(err), {enableHighAccuracy: true});
-
-  window.addEventListener('devicemotion', e => {
-    const {x, y, z} = e.accelerationIncludingGravity;
-    const magnitude = Math.sqrt(x*x + y*y + z*z);
-
-    if (magnitude > 12) {
-      steps++;
-      document.getElementById('steps').textContent = steps;
-      lastMotionTime = Date.now();
-
-      if (!isMoving) startWorkout();
-    }
-  });
-
-  function startWorkout() {
-    isMoving = true;
-    document.getElementById('status').textContent = "운동중";
-    timer = setInterval(() => {
-      elapsedTime++;
-      document.getElementById('time').textContent = elapsedTime;
-
-      if (Date.now() - lastMotionTime > 120000) stopWorkout();
-    }, 1000);
-  }
-
-  async function stopWorkout() {
-    isMoving = false;
-    clearInterval(timer);
-    document.getElementById('status').textContent = "휴식중";
-
-    const db = await dbPromise;
-    const record = {
-      date: new Date(),
-      location: currentLocation ? currentLocation.name : '미등록 장소',
-      steps, distance, elapsedTime
-    };
-
-    await db.add('records', record);
-    console.log('운동기록 저장됨:', record);
-
-    steps = distance = elapsedTime = 0;
-    document.getElementById('steps').textContent = 0;
-    document.getElementById('distance').textContent = 0;
-    document.getElementById('time').textContent = 0;
-  }
-
-  async function addMemo() {
-    if (!currentLocation) return alert('등록된 장소에서만 메모 추가 가능!');
-    const memo = prompt('이 장소에 대한 메모를 입력하세요:');
-    if (memo) {
-      const db = await dbPromise;
-      currentLocation.memo = memo;
-      await db.put('places', currentLocation);
-      alert('메모가 추가되었습니다!');
-    }
-  }
-  </script>
+}
+</script>
 </body>
 </html>
