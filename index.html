@@ -2,33 +2,35 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>운동 산책 기록 앱</title>
+  <title>자동 산책 기록 앱</title>
   <script src="https://cdn.jsdelivr.net/npm/idb@7/build/iife/index-min.js"></script>
   <style>
-    body {
-      font-size: 42px; /* 전체 글씨 크기 2배 이상 확대 */
-      padding: 20px;
-      text-align: center;
-    }
+    body { font-size: 50px; padding: 20px; text-align: center; }
     button {
-      font-size: 38px; /* 버튼 글씨 크기 대폭 확대 */
-      padding: 20px 30px;
-      margin-top: 30px;
-      width: 90%;
+      font-size: 50px; padding: 15px; width: 90%; margin-top: 15px;
       max-width: 500px;
     }
-    div {
-      margin-bottom: 25px;
-    }
+    select { font-size: 50px; padding: 10px; width: 90%; }
+    div { margin-bottom: 12px; }
   </style>
 </head>
 <body>
-  <h2>🏞️ 운동 산책 기록 앱 🌳</h2>
+  <h2>🏞️ 산책 기록 앱 🌳</h2>
+  
+  <div>
+    운동 종류:
+    <select id="activityType">
+      <option value="산책">산책 🚶‍♂️</option>
+      <option value="하이킹">하이킹 🥾</option>
+      <option value="러닝">러닝 🏃‍♂️</option>
+    </select>
+  </div>
+
   <div>상태: <span id="status">대기중</span></div>
   <div>장소: <span id="location">알 수 없음</span></div>
   <div>걸음수: <span id="steps">0</span> 걸음</div>
-  <div>이동거리: <span id="distance">0</span> m</div>
-  <div>운동시간: <span id="time">0</span> 초</div>
+  <div>거리: <span id="distance">0</span> m</div>
+  <div>운동시간: <span id="time">0</span> 분</div>
 
   <button id="startBtn">🚶 운동 시작</button>
   <button id="memoBtn">📝 장소 메모 추가</button>
@@ -92,7 +94,7 @@ async function saveNewLocation(name, coords) {
   await db.add('places', newPlace);
 }
 
-document.getElementById('startBtn').onclick = function() {
+document.getElementById('startBtn').onclick = () => {
   if (isMoving) {
     stopWorkout();
   } else {
@@ -102,12 +104,13 @@ document.getElementById('startBtn').onclick = function() {
 
 function startWorkout() {
   isMoving = true;
+  steps = distance = elapsedTime = 0;
   document.getElementById('status').textContent = "운동중";
   document.getElementById('startBtn').textContent = "⏹️ 운동 종료";
   window.addEventListener('devicemotion', countSteps);
   timer = setInterval(() => {
     elapsedTime++;
-    document.getElementById('time').textContent = elapsedTime;
+    document.getElementById('time').textContent = Math.floor(elapsedTime / 60);
   }, 1000);
 }
 
@@ -128,6 +131,12 @@ function countSteps(e) {
   }
 }
 
+document.getElementById('startBtn').onclick = () => {
+  if (isMoving) stopWorkout();
+  else startWorkout();
+  isMoving = !isMoving;
+};
+
 document.getElementById('memoBtn').onclick = async function() {
   if (!currentLocation) return alert('등록된 장소에서만 메모 추가 가능!');
   const memo = prompt('이 장소에 대한 메모를 입력하세요:');
@@ -138,6 +147,11 @@ document.getElementById('memoBtn').onclick = async function() {
     alert('메모가 추가되었습니다!');
   }
 };
+
+setInterval(() => {
+  if (!isMoving) return;
+  document.getElementById('time').textContent = Math.floor(elapsedTime / 60);
+}, 1000);
 </script>
 </body>
 </html>
