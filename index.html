@@ -1,24 +1,37 @@
 <!DOCTYPE html>
-<html lang=\"ko\">
+<html lang="ko">
 <head>
-  <meta charset=\"UTF-8\">
+  <meta charset="UTF-8">
   <title>운동 산책 기록 앱</title>
-  <script src=\"https://cdn.jsdelivr.net/npm/idb@7/build/iife/index-min.js\"></script>
+  <script src="https://cdn.jsdelivr.net/npm/idb@7/build/iife/index-min.js"></script>
   <style>
-    body { font-size: 18px; padding: 15px; }
-    button { font-size: 20px; padding: 10px 15px; margin-top: 10px; }
-    div { margin-bottom: 10px; }
+    body {
+      font-size: 22px;
+      padding: 20px;
+      text-align: center;
+    }
+    button {
+      font-size: 26px;
+      padding: 15px 25px;
+      margin-top: 20px;
+      width: 90%;
+      max-width: 300px;
+    }
+    div {
+      margin-bottom: 15px;
+    }
   </style>
 </head>
 <body>
   <h2>🏞️ 운동 산책 기록 앱 🌳</h2>
-  <div>상태: <span id=\"status\">대기중</span></div>
-  <div>장소: <span id=\"location\">알 수 없음</span></div>
-  <div>걸음수: <span id=\"steps\">0</span> 걸음</div>
-  <div>이동거리: <span id=\"distance\">0</span> m</div>
-  <div>운동시간: <span id=\"time\">0</span> 초</div>
-  <button onclick=\"startWorkout()\">운동 시작 🚶‍♂️</button>
-  <button onclick=\"addMemo()\">현재 장소 메모 추가 📝</button>
+  <div>상태: <span id="status">대기중</span></div>
+  <div>장소: <span id="location">알 수 없음</span></div>
+  <div>걸음수: <span id="steps">0</span> 걸음</div>
+  <div>이동거리: <span id="distance">0</span> m</div>
+  <div>운동시간: <span id="time">0</span> 초</div>
+
+  <button id="startBtn">🚶 운동 시작</button>
+  <button id="memoBtn">📝 장소 메모 추가</button>
 
 <script>
 const dbPromise = idb.openDB('hiking-app', 1, {
@@ -58,7 +71,7 @@ navigator.geolocation.watchPosition(pos => {
   }
 
   lastCoords = coords;
-}, err => console.error(err), {enableHighAccuracy: true});
+}, err => alert('위치 정보를 가져올 수 없습니다.'), {enableHighAccuracy: true});
 
 function updateLocation(coords) {
   currentLocation = locations.find(loc => calculateDistance(coords, loc.coords) <= loc.radius);
@@ -79,16 +92,16 @@ async function saveNewLocation(name, coords) {
   await db.add('places', newPlace);
 }
 
-function startWorkout() {
+document.getElementById('startBtn').onclick = function() {
   if (isMoving) return;
   isMoving = true;
-  document.getElementById('status').textContent = \"운동중\";
+  document.getElementById('status').textContent = "운동중";
   window.addEventListener('devicemotion', countSteps);
   timer = setInterval(() => {
     elapsedTime++;
     document.getElementById('time').textContent = elapsedTime;
   }, 1000);
-}
+};
 
 function countSteps(e) {
   const {x,y,z} = e.accelerationIncludingGravity;
@@ -99,7 +112,7 @@ function countSteps(e) {
   }
 }
 
-async function addMemo() {
+document.getElementById('memoBtn').onclick = async function() {
   if (!currentLocation) return alert('등록된 장소에서만 메모 추가 가능!');
   const memo = prompt('이 장소에 대한 메모를 입력하세요:');
   if (memo) {
@@ -108,7 +121,7 @@ async function addMemo() {
     await db.put('places', currentLocation);
     alert('메모가 추가되었습니다!');
   }
-}
+};
 </script>
 </body>
 </html>
