@@ -6,19 +6,19 @@
   <script src="https://cdn.jsdelivr.net/npm/idb@7/build/iife/index-min.js"></script>
   <style>
     body {
-      font-size: 22px;
+      font-size: 42px; /* 전체 글씨 크기 2배 이상 확대 */
       padding: 20px;
       text-align: center;
     }
     button {
-      font-size: 26px;
-      padding: 15px 25px;
-      margin-top: 20px;
+      font-size: 38px; /* 버튼 글씨 크기 대폭 확대 */
+      padding: 20px 30px;
+      margin-top: 30px;
       width: 90%;
-      max-width: 300px;
+      max-width: 500px;
     }
     div {
-      margin-bottom: 15px;
+      margin-bottom: 25px;
     }
   </style>
 </head>
@@ -93,15 +93,31 @@ async function saveNewLocation(name, coords) {
 }
 
 document.getElementById('startBtn').onclick = function() {
-  if (isMoving) return;
+  if (isMoving) {
+    stopWorkout();
+  } else {
+    startWorkout();
+  }
+};
+
+function startWorkout() {
   isMoving = true;
   document.getElementById('status').textContent = "운동중";
+  document.getElementById('startBtn').textContent = "⏹️ 운동 종료";
   window.addEventListener('devicemotion', countSteps);
   timer = setInterval(() => {
     elapsedTime++;
     document.getElementById('time').textContent = elapsedTime;
   }, 1000);
-};
+}
+
+function stopWorkout() {
+  isMoving = false;
+  document.getElementById('status').textContent = "대기중";
+  document.getElementById('startBtn').textContent = "🚶 운동 시작";
+  window.removeEventListener('devicemotion', countSteps);
+  clearInterval(timer);
+}
 
 function countSteps(e) {
   const {x,y,z} = e.accelerationIncludingGravity;
